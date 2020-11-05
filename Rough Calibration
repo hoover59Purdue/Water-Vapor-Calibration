@@ -1,0 +1,205 @@
+##### Script to Apply Olivia's Intensive Calibration fit to other data ####
+
+# Calibration data collected by Olivia Salmon (PhD) and Dr. LWelp
+# Calibration code created by Olivia Salmon
+# Code adjusted for use by Ali Meyer 2020 (meyer269@purdue.edu) and Bode Hoover (hoover59@purdue.edu)
+
+# Clear R memory
+rm(list = ls())
+par(mfrow=c(1,1)) 
+
+###### Load in Olivia's Cal function ##########
+load(file="/home/hoover59/Bode_water_vapor_calibration/BodeFitfn.RData") 
+# This loads in a file that OliviaCalFitfn.R created
+# Variables are fitfn_DOlivia, fitfn_O18Olivia, xD, yD, x18O, y18O
+# Aka the fits to the cal data (xD, etc.)
+  
+# Install and load the packages needed
+library(ggplot2, lubridate, zoo, "data.table")
+library(grid)
+# library(RcppRoll, gridExtracaTools, rowr, ggsci, dpylr) # Not available for version 3.2.3 or not working; need to update RStudio on ISORAIN
+###### Load in Acre data ######
+# make sure to change the path
+#read in raw data txt files for events
+#wvia05_25.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-05-25/twvia_2019-05-25_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia05_26.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-05-26/twvia_2019-05-26_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia05_29.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-05-29/twvia_2019-05-29_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia05_30.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-05-30/twvia_2019-05-30_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia05_31.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-05-31/twvia_2019-05-31_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia06_09.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-06-09/twvia_2019-06-09_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia06_10.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-06-10/twvia_2019-06-10_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+wvia07_15.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-07-15/twvia_2019-07-15_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+wvia07_16.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-07-16/twvia_2019-07-16_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia08_19.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-08-19/twvia_2019-08-19_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+#wvia08_20.df <- read.delim("/export/project/TWVIA_Acre_2019/2019-08-20/twvia_2019-08-20_f0000.txt", skip=1, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+#combine daily files into one large matrix for each event
+#EX where X is the event number. 5 in total from 2019 with buffers
+  # E1: 5/26
+  # E2: 5/30 
+  # E3: 6/9
+  # E4: 7/16 only event with good data for calibration
+  # E5: 8/20 
+wviaE4.df <- rbind(wvia07_15.df,wvia07_16.df)
+
+#Remove NA from dataframes
+wviaE4.df <- na.omit(wviaE4.df)
+
+# Screen out purge times
+wviaE4.df <- subset(wviaE4.df,wviaE4.df$WVISS_VOLTAGE < 4.99 & wviaE4.df$WVISS_VOLTAGE > 0)
+
+# Check voltages
+unique(wviaE2.df$WVISS_VOLTAGE) # 0.50 0.75 1.00 1.50 2.00
+
+# Create R friendly time stamps
+wviaE4.df$Time <- as.POSIXct(strptime(wviaE4.df$Time, '%m/%d/%Y %H:%M:%S',tz = "America/New_York")) #tz is time zone
+plot(wviaE4.df$H2O_ppm,wviaE4.df$D_del, ylab = "dD", xlab = "[H2O]", main = "Event 4", pch = 19)
+
+# Assiging data frame to EX for generality
+wviaEX.df <- NA
+wviaEX.df <- wviaE4.df
+
+#### Prepare Calibration Correction factors ####
+# The only variable you really need from your data right now is measured H2O
+# This makes your "calibration correction factors" based on your H2O values
+wviaEX.df$Cal_Cor_dD <- fitfn_DBode(wviaEX.df$H2O_ppm)
+wviaEX.df$Cal_Cor_dO18 <- fitfn_O18Bode(wviaEX.df$H2O_ppm)
+wviaEX.df <- na.omit(wviaEX.df)
+plot(wviaEX.df$H2O_ppm, wviaEX.df$Cal_Cor_dD)
+plot(wviaEX.df$H2O_ppm, wviaEX.df$Cal_Cor_dO18)
+# quick plot check to make sure the curves look right; should look like the original fit curve
+plot(wviaEX.df$H2O_ppm, wviaEX.df$Cal_Cor_dD - 40, xlab = "[H2O]",ylab = "cal correction dD", pch = 19)
+points(wviaEX.df$H2O_ppm, wviaEX.df$D_del, col=2, pch = 19)
+plot(wviaEX.df$H2O_ppm, wviaEX.df$Cal_Cor_dO18, xlab = "H2O]", ylab = "cal correction dO18", pch=19)
+
+#### Apply calibration to your data #####
+# Subtract CalCor values from measured WVIA observation data to get calibrated isotope data
+# After applying calibration, the values should be hovering around one value
+wviaEX.df$dDcal <- wviaEX.df$D_del - wviaEX.df$Cal_Cor_dD
+wviaEX.df$dO18cal <- wviaEX.df$O18_del - wviaEX.df$Cal_Cor_dO18
+plot(wviaEX.df$H2O_ppm, wviaEX.df$dDcal, xlab = "[H2O]", ylab = "dD calibrated", pch = 19)
+plot(wviaEX.df$H2O_ppm, wviaEX.df$dO18cal, xlab = "[H2O]", ylab = "dO18 calibrated", pch = 19)
+
+# Averaging values every 2 minutes
+wviaEX.df$H2O_120 <- rollmean(x = wviaEX.df$H2O_ppm, k = 120, fill = NA)
+wviaEX.df$dD_120_cal <- rollmean(x = wviaEX.df$dDcal, k = 120, fill = NA)
+wviaEX.df$dO18_120_cal <- rollmean(x = wviaEX.df$O18cal, k = 120, fill = NA)
+wviaEX.df <- na.omit(wviaEX.df)
+
+### Plotting averaged calibrated data ###
+unique(wviaEX.df$WVISS_VOLTAGE)
+v <- 1.00
+plot.df <- subset(wviaEX.df, wviaEX.df$WVISS_VOLTAGE == v)
+plot(plot.df$H2O_120, plot.df$dO18_120_cal, xlab = "[H2O]", ylab = "dO18 calibrated then averaged", pch = 19)
+plot(plot.df$H2O_120, plot.df$dD_120_cal, xlab = "[H2O]", ylab = "dD calibrated then averaged", pch = 19)
+
+# Calculating diffvolt
+qEX = nrow(wviaEX.df)
+zEX <- 100
+zEX[2:qEX] <- (wviaEX.df$WVISS_VOLTAGE[2:qEX] - wviaEX.df$WVISS_VOLTAGE[1:qEX-1])
+wviaEX.df$Vdiff <- zEX #creating new column for difference in WVISS voltage
+ggplot(wviaEX.df, aes(x=Time, y=Vdiff)) +
+  geom_point(size = 1, shape = 1) +
+  ylim(-5, 5) + 
+  labs(x="time2", y = "Vdiff") +
+  theme_light()
+
+# calc time since switching
+# loop through cal runs
+qEX <- nrow(wviaEX.df)
+a <- 1
+b <- 1
+for(i in 2:qEX) {
+  if(wviaEX.df$Vdiff[i] > 0 | wviaEX.df$Vdiff[i] < 0) 
+  {a[i] <- 1
+  b[i] <- b[i-1] + 1}
+  else {a[i] <- a[i-1] + 1
+  b[i] <- b[i-1]}
+}
+wviaEX.df$rl <- a #rl = run length
+wviaEX.df$n <- b #n is number of runs
+ggplot(wviaEX.df, aes(x = Time, y = rl)) +
+  geom_point(size = 1, shape = 1) +
+  labs(x="Time", y = "rl") +
+  theme_light()
+
+# Discard all but the last few min of data
+fEX <- length(unique(wviaEX.df$n)) #unique removes duplicates
+d <- c(0) # Discard the first 750 seconds
+calEX.df <- subset(wviaEX.df$Time, wviaEX.df$rl == 750)
+cal_time <- NA
+cal_time2EX <- NA
+cal_length <- NA
+d2 <- NA
+cal_wviss_v <- NA
+cal_H2O_ppm <- NA
+cal_O18_del <- NA
+cal_D_del <- NA
+Navg <- NA
+gasT <- NA
+gasT_sd <- NA
+cal_H2O_ppm_sd <- NA
+cal_O18_del_sd <- NA
+cal_D_del_sd <- NA
+gasP <- NA
+sec1 <- NA
+sec2 <- NA
+mat_min <- NA
+mat_O18 <- NA
+for(j in 1:fEX){
+  cal_time[j] <- j 
+  cal_time2EX[j] <- min(wviaEX.df$Time[wviaEX.df$n == j])
+  cal_length[j] <- max(wviaEX.df$rl[wviaEX.df$n == j])
+  wviaEX.df$cal_length[wviaEX.df$n == j] <-  max(wviaEX.df$rl[wviaEX.df$n == j])
+  d2[j] <- cal_length[j] - 200
+  cal_wviss_v[j] <- min(wviaEX.df$WVISS_VOLTAGE[wviaEX.df$n == j])
+  cal_H2O_ppm[j] <- mean(wviaEX.df$H2O_ppm[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  wviaEX.df$H2O_ppm_norm[wviaEX.df$n == j] <- wviaEX.df$H2O_ppm[wviaEX.df$n == j] - cal_H2O_ppm[j] 
+  cal_O18_del[j] <- mean(wviaEX.df$O18_del[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  wviaEX.df$O18_del_norm[wviaEX.df$n == j] <- wviaEX.df$O18_del[wviaEX.df$n == j] - cal_O18_del[j]
+  cal_D_del[j] <- mean(wviaEX.df$D_del[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  wviaEX.df$D_del_norm[wviaEX.df$n == j] <- wviaEX.df$D_del[wviaEX.df$n == j] - cal_D_del[j]
+  Navg[j] <- length(wviaEX.df$D_del[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  gasT[j] <- mean(wviaEX.df$GasT_C[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  gasT_sd[j] <- sd(wviaEX.df$GasT_C[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  cal_H2O_ppm_sd[j] <- sd(wviaEX.df$H2O_ppm[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  cal_O18_del_sd[j] <- sd(wviaEX.df$O18_del[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  cal_D_del_sd[j] <- sd(wviaEX.df$D_del[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  gasP[j] <- mean(wviaEX.df$GasP_torr[wviaEX.df$n == j & wviaEX.df$rl > d2[j]])
+  for(k in 1:25){
+    sec1[k] <- (k - 1) * 60
+    sec2[k] <- c(1600)
+  }
+}
+
+calEX.df <- data.frame(cal_time,cal_H2O_ppm,cal_H2O_ppm_sd,cal_O18_del,cal_O18_del_sd,cal_D_del,cal_D_del_sd,gasT,cal_length,cal_wviss_v)
+unique(calEX.df$cal_wviss_v) #1.0, 0.5, 2, 0.75, 1.5
+# Estimate measurement precision
+sd_D <- NULL
+sd_O18 <- NULL
+sd_D_mean <- NULL
+sd_O18_mean <- NULL
+sd_D <- cal_D_del_sd[calEX.df$cal_wviss_v > 1 & calEX.df$cal_wviss_v < 4]
+sd_D_mean <- mean(sd_D[sd_D < 10])
+sd_O18 <- cal_O18_del_sd[calEX.df$cal_wviss_v > 1 & calEX.df$cal_wviss_v < 4]
+sd_O18_mean <- mean(sd_O18[sd_O18 < 1])
+
+# Visualize the sweepout curves normalized by the last 5 min mean 
+v <- c(1.0)
+qplot(wviaEX.df$rl[wviaEX.df$WVISS_VOLTAGE == v], wviaEX.df$O18_del_norm[wviaEX.df$WVISS_VOLTAGE == v],col = wviaEX.df$n[wviaEX.df$WVISS_VOLTAGE == v], xlab = "rl", ylab = "O18_del_norm") + labs(colour = 'n') 
+qplot(wviaEX.df$rl[wviaEX.df$WVISS_VOLTAGE == v],wviaEX.df$H2O_ppm_norm[wviaEX.df$WVISS_VOLTAGE == v],col = wviaEX.df$n[wviaEX.df$WVISS_VOLTAGE == v], ylim=c(-1000, 1500), xlab = "rl", ylab = "H2O_ppm_norm") + labs(colour = 'n')
+qplot(wviaEX.df$rl[wviaEX.df$WVISS_VOLTAGE == v],wviaEX.df$D_del_norm[wviaEX.df$WVISS_VOLTAGE == v],col = wviaEX.df$n[wviaEX.df$WVISS_VOLTAGE == v],ylim=c(-2,1), xlab = "rl", ylab = "D_del_norm") + labs(colour = 'n')
+qplot(wviaEX.df$rl[wviaEX.df$WVISS_VOLTAGE == v],wviaEX.df$GasP_torr[wviaEX.df$WVISS_VOLTAGE == v],col = wviaEX.df$n[wviaEX.df$WVISS_VOLTAGE == v], xlab = "rl", ylab = "GasP_Torr") + labs(colour = 'n')
+plot(calEX.df$cal_H2O_ppm, calEX.df$cal_O18_del, xlab = "[H2O]", ylab = "dO18", main = " roll mean, last 2 min", pch = 19)
+plot(calEX.df$cal_H2O_ppm, calEX.df$cal_D_del, xlab = "[H2O]", ylab = "dD", main = "roll mean, last 2 min", pch = 19)
+plot(calEX.df$cal_time, calEX.df$cal_O18_del, pch = 19)
+
+# Dates and times dependent on event 
+t11 <- "2019-07-16 15:23" # For event 4 on July 16 with buffer
+t22 <- "2019-07-16 21:23"
+t1 <- as.POSIXlt(t11, format="%Y-%m-%d %H:%M")
+t2 <- as.POSIXlt(t22, format="%Y-%m-%d %H:%M")
+plot(wviaEX.df$Time[wviaEX.df$Time > t1 & wviaEX.df$Time < t2 & wviaEX.df$WVISS_VOLTAGE > 0],wviaEX.df$GasP_torr[wviaEX.df$Time > t1 & wviaEX.df$Time<t2 & wviaEX.df$WVISS_VOLTAGE > 0],col="red",pch=20,xlab="Time (Central)",main="July 16 2019", ylab="GasP (torr)")
+points(wviaEX.df$Time[wviaEX.df$Time > t1 & wviaEX.df$Time<t2 & wviaEX.df$WVISS_VOLTAGE == 0],wviaEX.df$GasP_torr[wviaEX.df$Time > t1 & wviaEX.df$Time <t2 & wviaEX.df$WVISS_VOLTAGE == 0],col="blue",pch=20)
+legend("bottomleft", inset=.05,c("WVISS","MIU"), lty=c(1,1),lwd=c(2.5,2.5), col = c("red","blue"))
+dev.off()
