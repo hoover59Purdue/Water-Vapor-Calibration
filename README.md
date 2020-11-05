@@ -1,7 +1,7 @@
 # Water-Vapor-Calibration
 OliviaCalFitFn.R code reads in Olivia's finaldata_enriched...txt file to create the calibration fit function (OliviaFitFn.Rdata) 
 The OliviaCalFitFn.R code can be adjusted to create a better fitting, fit function in the higher [H2O] (adjusting bandwidth)
-You will load in the fit function you decide to use (either your own creation or OliviaFitFn.Rdata) to apply to your Acre data using ApplyCalToAcre.R code. 
+You will load in the fit function you decide to use (either your own creation or OliviaFitFn.Rdata) to apply to your Acre data using ApplyCalToAcre.R (Rough Calibration is cleaner version) code. 
 Calibration is applied to dD and dO18 data from ACRE at Purdue University for 5 events
 
 The five events are:
@@ -11,9 +11,7 @@ The five events are:
 7/16/2019,
 8/20/2019
 
-Only have calibration data for:
-May 30 (Event 2) and 
-August 20 (Event 5)
+Event 4 is the only one with good data for calibration curve
 
 Regarding bandwidths,
 a kernal density smoothing (a type of probability density estimate), you're replacing each point in that calibration data collection with a gaussian curve that is centered on that point's value. 
